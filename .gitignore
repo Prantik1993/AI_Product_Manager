@@ -1,0 +1,15 @@
+# Security: Never upload keys
+.env
+k8s/1-secret.yaml
+
+# System: Ignore virtual environment and heavy folders
+venv/
+__pycache__/
+.DS_Store
+
+# Data: Ignore local databases (RAG & SQLite)
+data/chroma_db/
+data/app.db
+
+# Documentation: You might want to ignore internal company PDFs if they are real
+data/internal_docs/*.pdf

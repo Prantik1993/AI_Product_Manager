@@ -1,0 +1,13 @@
+langchain>=0.1.0
+langchain-openai
+langchain-community
+langchain-chroma       # NEW: For Vector DB
+chromadb               # NEW: The Database itself
+langgraph
+pydantic>=2.0.0
+pydantic-settings      # NEW: For src/config/settings.py
+python-dotenv
+pyyaml
+tavily-python
+streamlit 
+pypdf             # Required for the UI
