@@ -1,5 +1,5 @@
 import os
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
 
 class Settings(BaseSettings):
@@ -24,10 +24,11 @@ class Settings(BaseSettings):
     DB_PATH: str = os.path.join(BASE_DIR, "data", "app.db")
     PROMPTS_DIR: str = os.path.join(BASE_DIR, "src", "prompts", "templates")
 
-    class Config:
-        # Tries to read from .env file first
-        env_file = ".env"
-        env_file_encoding = "utf-8"
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore"  # Good practice: ignore extra keys in .env
+    )
 
 # Singleton Pattern: Create one instance and reuse it
 @lru_cache

@@ -1,0 +1,18 @@
+# Ignore Git files
+.git
+.gitignore
+
+# Ignore Virtual Env
+venv/
+env/
+
+# Ignore Python Cache
+__pycache__/
+*.pyc
+
+# Ignore Local Secrets & DBs
+.env
+data/app.db
+data/chroma_db/
+k8s/
+tests/

@@ -10,4 +10,6 @@ python-dotenv
 pyyaml
 tavily-python
 streamlit 
-pypdf             # Required for the UI
+pypdf  
+pytest
+           # Required for the UI
