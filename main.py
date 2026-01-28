@@ -4,14 +4,13 @@ import json
 import os
 
 # --- 1. SETUP PATHS ---
-# Add 'src' to python path so imports work correctly
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(current_dir, "src"))
 
 try:
     # --- 2. ENTERPRISE IMPORTS ---
     from src.config.settings import settings
-    from src.utils.logger import get_logger
+    from src.monitoring.logger import get_logger  # FIXED: Was src.utils.logger
     from src.storage.db_manager import init_db, save_analysis
     from src.graph.workflow import create_graph
 except ImportError as e:
@@ -67,14 +66,23 @@ async def main():
             for item in verdict.get("action_items", []):
                 print(f"  - {item}")
         
+        # Display confidence if available
+        confidence = verdict.get("confidence_score")
+        if confidence is not None:
+            print(f"\n📊 Confidence: {confidence * 100:.1f}%")
+        
         # 6. Save to Database
         save_analysis(user_input, decision, final_state)
         print(f"\n💾 Report saved to: {settings.DB_PATH}")
         logger.info("CLI Analysis completed successfully.")
 
     except Exception as e:
-        logger.error(f"Analysis Failed: {e}")
+        logger.error(f"Analysis Failed: {e}", exc_info=True)
         print(f"\n❌ Error during analysis: {str(e)}")
+        print("\nTroubleshooting tips:")
+        print("  1. Verify your API keys in .env file")
+        print("  2. Check that all services are running")
+        print("  3. Review logs for detailed error messages")
 
 if __name__ == "__main__":
     # Run the async main function

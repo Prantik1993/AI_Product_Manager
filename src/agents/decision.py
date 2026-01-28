@@ -6,7 +6,7 @@ from src.agents.base import BaseAgent
 from src.config.settings import settings
 from src.prompts.manager import load_prompt
 from src.schemas.output import FinalDecision
-from src.rag.engine import RAGQueryEngine  # <--- NEW: The Company Brain
+from src.rag.engine import RAGQueryEngine
 
 class DecisionAgent(BaseAgent):
     def __init__(self):
@@ -18,8 +18,12 @@ class DecisionAgent(BaseAgent):
         )
         self.prompt_template = load_prompt("decision")
         
-        # Initialize RAG Engine
-        self.rag = RAGQueryEngine()
+        # Initialize RAG Engine with error handling
+        try:
+            self.rag = RAGQueryEngine()
+        except Exception as e:
+            self.log_error(f"RAG Engine initialization failed: {e}")
+            self.rag = None
 
     def _get_agent_output(self, state: Dict[str, Any], key: str, default: str = "Data unavailable") -> str:
         data = state.get(key)
@@ -28,20 +32,36 @@ class DecisionAgent(BaseAgent):
     async def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
         # --- 🛡️ BARRIER CHECK ---
         required_keys = ["market_analysis", "tech_analysis", "risk_analysis", "user_feedback_analysis"]
-        if not all(state.get(k) for k in required_keys):
-            return {}
+        
+        missing_keys = [k for k in required_keys if not state.get(k)]
+        if missing_keys:
+            self.log_error(f"Missing required reports: {missing_keys}")
+            return {
+                "final_verdict": {
+                    "decision": "ERROR",
+                    "reasoning": f"Cannot make decision: Missing reports from {', '.join(missing_keys)}",
+                    "confidence_score": 0.0,
+                    "action_items": ["Wait for all agents to complete", "Check agent logs"]
+                }
+            }
 
         self.log("All reports received. Consulting Company Strategy (RAG)...")
         
         # 1. RETRIEVE COMPANY KNOWLEDGE
-        user_input = state.get('user_input')
-        # We ask the DB: "What are our rules about [user idea]?"
-        company_context = self.rag.query(user_input)
+        user_input = state.get('user_input', '')
+        company_context = "Company strategy unavailable."
         
-        self.log(f"Retrieved Company Strategy: {len(company_context)} chars")
+        if self.rag:
+            try:
+                company_context = self.rag.query(user_input)
+                self.log(f"Retrieved Company Strategy: {len(company_context)} chars")
+            except Exception as e:
+                self.log_error(f"RAG query failed: {e}")
+                company_context = "Company strategy retrieval failed."
+        else:
+            self.log_error("RAG engine not initialized")
 
         # 2. SYNTHESIZE EVERYTHING
-        # We inject 'company_context' at the very top so it takes priority
         context = (
             f"User Product Request: {user_input}\n\n"
             f"=== 🏢 INTERNAL COMPANY STRATEGY (STRICTLY FOLLOW) ===\n{company_context}\n"
@@ -54,7 +74,7 @@ class DecisionAgent(BaseAgent):
         
         prompt = ChatPromptTemplate.from_messages([
             ("system", self.prompt_template),
-            ("user", "Here is the data. Compare the Idea against our Company Strategy FIRST. \n\n{context}")
+            ("user", "Here is the data. Compare the Idea against our Company Strategy FIRST.\n\n{context}")
         ])
         
         chain = prompt | self.llm.with_structured_output(FinalDecision)
@@ -69,7 +89,8 @@ class DecisionAgent(BaseAgent):
             return {
                 "final_verdict": {
                     "decision": "ERROR",
-                    "reasoning": f"System failure: {str(e)}",
-                    "action_items": ["Check logs", "Retry"]
+                    "reasoning": f"Decision synthesis failed: {str(e)}",
+                    "confidence_score": 0.0,
+                    "action_items": ["Check logs", "Verify LLM API key", "Retry analysis"]
                 }
             }

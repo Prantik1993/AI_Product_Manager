@@ -29,6 +29,22 @@ async def run_decision_agent(state: ProductManagerState):
     agent = DecisionAgent()
     return await agent.run(state)
 
+# NEW: Synchronization barrier node
+async def wait_for_all_agents(state: ProductManagerState):
+    """
+    This node acts as a synchronization barrier.
+    It only proceeds once all agent reports are present.
+    """
+    required_keys = ["market_analysis", "tech_analysis", "risk_analysis", "user_feedback_analysis"]
+    
+    # Check if all reports are present
+    if all(state.get(k) for k in required_keys):
+        # All reports ready, pass through unchanged
+        return state
+    else:
+        # This shouldn't happen with proper graph structure, but safety check
+        return state
+
 def create_graph():
     workflow = StateGraph(ProductManagerState)
 
@@ -37,24 +53,25 @@ def create_graph():
     workflow.add_node("tech_agent", run_tech_agent)
     workflow.add_node("risk_agent", run_risk_agent)
     workflow.add_node("user_feedback_agent", run_user_feedback_agent)
+    workflow.add_node("barrier", wait_for_all_agents)  # NEW: Synchronization node
     workflow.add_node("decision_agent", run_decision_agent)
 
     # 2. Start Parallel Execution
-    # Kick off all 4 agents immediately
     workflow.add_edge(START, "market_agent")
     workflow.add_edge(START, "tech_agent")
     workflow.add_edge(START, "risk_agent")
     workflow.add_edge(START, "user_feedback_agent")
 
-    # 3. Direct Fan-In
-    # Point everyone to the Decision Agent.
-    # The Decision Agent will handle the "waiting" logic internally.
-    workflow.add_edge("market_agent", "decision_agent")
-    workflow.add_edge("tech_agent", "decision_agent")
-    workflow.add_edge("risk_agent", "decision_agent")
-    workflow.add_edge("user_feedback_agent", "decision_agent")
+    # 3. All agents converge to barrier
+    workflow.add_edge("market_agent", "barrier")
+    workflow.add_edge("tech_agent", "barrier")
+    workflow.add_edge("risk_agent", "barrier")
+    workflow.add_edge("user_feedback_agent", "barrier")
 
-    # 4. End
+    # 4. Barrier to Decision Agent (executes only once)
+    workflow.add_edge("barrier", "decision_agent")
+
+    # 5. End
     workflow.add_edge("decision_agent", END)
 
     return workflow.compile()
