@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Any
-from src.utils.logger import get_logger  # <--- NEW: Enterprise Logger
+from src.monitoring.logger import get_logger
 
 class BaseAgent(ABC):
     """

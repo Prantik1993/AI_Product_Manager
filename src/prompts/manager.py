@@ -2,7 +2,7 @@ import os
 import yaml
 from functools import lru_cache
 from src.config.settings import settings
-from src.utils.logger import get_logger
+from src.monitoring.logger import get_logger
 
 logger = get_logger("prompt_manager")
 

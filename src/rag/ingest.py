@@ -15,7 +15,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings
 from src.config.settings import settings
-from src.utils.logger import get_logger
+from src.monitoring.logger import get_logger
 
 logger = get_logger("rag.ingest")
 

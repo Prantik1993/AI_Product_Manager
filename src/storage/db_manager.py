@@ -3,7 +3,7 @@ import json
 import os
 from datetime import datetime
 from src.config.settings import settings
-from src.utils.logger import get_logger
+from src.monitoring.logger import get_logger
 
 logger = get_logger("db_manager")
 

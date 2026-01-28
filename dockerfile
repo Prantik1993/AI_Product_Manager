@@ -1,32 +1,67 @@
-# 1. Base Image: Use a lightweight, official Python runtime
-FROM python:3.11-slim
+# Multi-stage production-ready Dockerfile
+FROM python:3.11-slim as base
 
-# 2. Set Environment Variables to optimize Python
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# 3. Set Working Directory
+# Set working directory
 WORKDIR /app
 
-# 4. Install System Dependencies (Needed for ChromaDB & PDF tools)
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
     curl \
-    software-properties-common \
     && rm -rf /var/lib/apt/lists/*
 
-# 5. Copy Requirements & Install
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# ============================================
+# Builder stage: Install Python dependencies
+# ============================================
+FROM base as builder
 
-# 6. Copy The Source Code
+# Copy requirements
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN pip install --user --no-cache-dir -r requirements.txt
+
+# ============================================
+# Production stage: Minimal runtime image
+# ============================================
+FROM base as production
+
+# Copy Python dependencies from builder
+COPY --from=builder /root/.local /root/.local
+
+# Add local bin to PATH
+ENV PATH=/root/.local/bin:$PATH
+
+# Copy application code
 COPY . .
 
-# 7. Healthcheck (Enterprise Requirement: "Are you alive?")
-HEALTHCHECK CMD curl --fail http://localhost:8501/_stcore/health || exit 1
+# Create necessary directories
+RUN mkdir -p data/internal_docs data/chroma_db data/cache && \
+    chmod +x scripts/*.sh 2>/dev/null || true
 
-# 8. Expose the Port
+# Expose Streamlit port
 EXPOSE 8501
 
-# 9. Run the App
-CMD ["streamlit", "run", "app.py", "--server.address=0.0.0.0"]
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD python scripts/health_check.py || exit 1
+
+# Default command: Run Streamlit UI
+CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+
+# ============================================
+# Development stage: With dev tools
+# ============================================
+FROM production as development
+
+# Install development dependencies
+RUN pip install --no-cache-dir pytest pytest-cov black ruff mypy
+
+# Override command for dev mode
+CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.runOnSave=true"]

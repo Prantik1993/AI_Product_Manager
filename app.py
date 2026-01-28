@@ -19,7 +19,7 @@ except Exception as e:
     st.stop()
 
 # Import Enterprise Modules
-from src.utils.logger import get_logger
+from src.monitoring.logger import get_logger
 from src.storage.db_manager import init_db, save_analysis, get_history
 from src.graph.workflow import create_graph
 
