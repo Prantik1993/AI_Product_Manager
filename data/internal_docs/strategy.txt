@@ -1,0 +1,36 @@
+CONFIDENTIAL: COMPANY STRATEGY & PRODUCT GUIDELINES (2025-2026)
+
+SECTION 1: CORE MISSION
+Our mission is to build "Sustainable Software for the Future." We prioritize ethical AI,
+environmental sustainability, and privacy-first architecture in every product we ship.
+
+SECTION 2: STRICT PRODUCT RULES - THE "HARD NO" LIST
+1. NO HARDWARE: We are a pure software company. We do not manufacture physical devices,
+   drones, IoT hardware, or wearables. Any hardware component in a proposal is an automatic NO-GO.
+2. NO CRYPTO / BLOCKCHAIN: We do not engage in cryptocurrency, blockchain mining, NFT trading,
+   or DeFi due to environmental impact and regulatory uncertainty.
+3. NO GAMBLING: We do not build betting, casino, or lottery applications.
+4. BUDGET CAP: The maximum initial budget for any MVP is $50,000 USD.
+   Ideas requiring more than $50k to reach MVP stage are automatically disqualified.
+
+SECTION 3: TARGET AUDIENCE
+Our primary market is Gen Z and Millennials, ages 18-40.
+We do not build enterprise legacy software for banks, government sectors, or large institutions.
+Consumer-facing, mobile-first products are preferred.
+
+SECTION 4: TECHNICAL STANDARDS
+- All products must be cloud-native (AWS or Azure preferred).
+- Preferred stack: Python (backend), React / React Native (frontend).
+- We do not support on-premise deployments.
+- All data must be stored in compliant cloud infrastructure.
+
+SECTION 5: RISK TOLERANCE
+We have LOW risk tolerance for legal issues.
+- Any product that scrapes user data without explicit consent is a NO-GO.
+- Any product that violates GDPR, CCPA, or HIPAA without a clear compliance plan is a NO-GO.
+- We require a legal review for any product touching health, finance, or children's data.
+
+SECTION 6: SUSTAINABILITY REQUIREMENTS
+- All cloud workloads must use green energy regions where available.
+- Products must include a data minimization strategy.
+- We do not partner with companies on Amnesty International's or EPA's watchlists.

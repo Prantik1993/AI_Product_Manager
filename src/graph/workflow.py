@@ -68,23 +68,7 @@ async def run_decision(state: ProductManagerState) -> dict:
 # Graph factory
 # -----------------------------------------------------------------------
 def create_graph():
-    """
-    Build and compile the LangGraph workflow.
 
-    Topology:
-        START → [market, tech, risk, user_feedback] (parallel fan-out)
-              → decision_agent               (fan-in — LangGraph handles sync natively)
-              → END
-
-    FIX: Removed the useless 'barrier' node. LangGraph automatically waits
-         for all incoming edges before executing a node. No extra node needed.
-
-    FIX: MemorySaver checkpointer added — if analysis crashes mid-run,
-         LangGraph can resume from the last completed node.
-         In production, swap MemorySaver for SqliteSaver:
-             from langgraph.checkpoint.sqlite import SqliteSaver
-             checkpointer = SqliteSaver.from_conn_string("data/checkpoints.db")
-    """
     workflow = StateGraph(ProductManagerState)
 
     # Register nodes
