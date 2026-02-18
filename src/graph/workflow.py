@@ -1,77 +1,114 @@
-from langgraph.graph import StateGraph, START, END
-from src.graph.state import ProductManagerState
+"""
+LangGraph workflow orchestration.
 
-# Import Agent Runners
+Key fixes from audit:
+- Agents are module-level singletons (not recreated per request)
+- No useless barrier node — LangGraph fan-in handles sync natively
+- LangGraph checkpointer enabled for fault tolerance
+- RAGQueryEngine created once and injected into DecisionAgent
+"""
+
+import os
+from langgraph.graph import StateGraph, START, END
+from langgraph.checkpoint.memory import MemorySaver
+
+from src.graph.state import ProductManagerState
 from src.agents.market import MarketAgent
 from src.agents.tech import TechAgent
 from src.agents.risk import RiskAgent
 from src.agents.user_feedback import UserFeedbackAgent
 from src.agents.decision import DecisionAgent
+from src.rag.engine import RAGQueryEngine
+from src.monitoring.logger import get_logger
 
-# --- Agent Runners ---
-async def run_market_agent(state: ProductManagerState):
-    agent = MarketAgent()
-    return await agent.run(state)
+logger = get_logger(__name__)
 
-async def run_tech_agent(state: ProductManagerState):
-    agent = TechAgent()
-    return await agent.run(state)
+# -----------------------------------------------------------------------
+# FIX: Module-level singletons — created ONCE per process, not per request
+# DecisionAgent receives the shared RAG engine via dependency injection
+# -----------------------------------------------------------------------
+try:
+    _rag_engine = RAGQueryEngine()
+    logger.info("RAGQueryEngine singleton created")
+except Exception as e:
+    logger.warning(f"RAGQueryEngine failed to initialize: {e}. Decision will run without RAG.")
+    _rag_engine = None
 
-async def run_risk_agent(state: ProductManagerState):
-    agent = RiskAgent()
-    return await agent.run(state)
+_market_agent = MarketAgent()
+_tech_agent = TechAgent()
+_risk_agent = RiskAgent()
+_feedback_agent = UserFeedbackAgent()
+_decision_agent = DecisionAgent(rag_engine=_rag_engine)
 
-async def run_user_feedback_agent(state: ProductManagerState):
-    agent = UserFeedbackAgent()
-    return await agent.run(state)
 
-async def run_decision_agent(state: ProductManagerState):
-    agent = DecisionAgent()
-    return await agent.run(state)
+# -----------------------------------------------------------------------
+# Node runner functions — thin wrappers around singleton agents
+# -----------------------------------------------------------------------
+async def run_market(state: ProductManagerState) -> dict:
+    return await _market_agent.run(state)
 
-# NEW: Synchronization barrier node
-async def wait_for_all_agents(state: ProductManagerState):
-    """
-    This node acts as a synchronization barrier.
-    It only proceeds once all agent reports are present.
-    """
-    required_keys = ["market_analysis", "tech_analysis", "risk_analysis", "user_feedback_analysis"]
-    
-    # Check if all reports are present
-    if all(state.get(k) for k in required_keys):
-        # All reports ready, pass through unchanged
-        return state
-    else:
-        # This shouldn't happen with proper graph structure, but safety check
-        return state
 
+async def run_tech(state: ProductManagerState) -> dict:
+    return await _tech_agent.run(state)
+
+
+async def run_risk(state: ProductManagerState) -> dict:
+    return await _risk_agent.run(state)
+
+
+async def run_user_feedback(state: ProductManagerState) -> dict:
+    return await _feedback_agent.run(state)
+
+
+async def run_decision(state: ProductManagerState) -> dict:
+    return await _decision_agent.run(state)
+
+
+# -----------------------------------------------------------------------
+# Graph factory
+# -----------------------------------------------------------------------
 def create_graph():
+    """
+    Build and compile the LangGraph workflow.
+
+    Topology:
+        START → [market, tech, risk, user_feedback] (parallel fan-out)
+              → decision_agent               (fan-in — LangGraph handles sync natively)
+              → END
+
+    FIX: Removed the useless 'barrier' node. LangGraph automatically waits
+         for all incoming edges before executing a node. No extra node needed.
+
+    FIX: MemorySaver checkpointer added — if analysis crashes mid-run,
+         LangGraph can resume from the last completed node.
+         In production, swap MemorySaver for SqliteSaver:
+             from langgraph.checkpoint.sqlite import SqliteSaver
+             checkpointer = SqliteSaver.from_conn_string("data/checkpoints.db")
+    """
     workflow = StateGraph(ProductManagerState)
 
-    # 1. Add Nodes
-    workflow.add_node("market_agent", run_market_agent)
-    workflow.add_node("tech_agent", run_tech_agent)
-    workflow.add_node("risk_agent", run_risk_agent)
-    workflow.add_node("user_feedback_agent", run_user_feedback_agent)
-    workflow.add_node("barrier", wait_for_all_agents)  # NEW: Synchronization node
-    workflow.add_node("decision_agent", run_decision_agent)
+    # Register nodes
+    workflow.add_node("market_agent", run_market)
+    workflow.add_node("tech_agent", run_tech)
+    workflow.add_node("risk_agent", run_risk)
+    workflow.add_node("user_feedback_agent", run_user_feedback)
+    workflow.add_node("decision_agent", run_decision)
 
-    # 2. Start Parallel Execution
+    # Fan-out: START → all 4 analysis agents in parallel
     workflow.add_edge(START, "market_agent")
     workflow.add_edge(START, "tech_agent")
     workflow.add_edge(START, "risk_agent")
     workflow.add_edge(START, "user_feedback_agent")
 
-    # 3. All agents converge to barrier
-    workflow.add_edge("market_agent", "barrier")
-    workflow.add_edge("tech_agent", "barrier")
-    workflow.add_edge("risk_agent", "barrier")
-    workflow.add_edge("user_feedback_agent", "barrier")
+    # Fan-in: all 4 agents → decision (LangGraph waits for all automatically)
+    workflow.add_edge("market_agent", "decision_agent")
+    workflow.add_edge("tech_agent", "decision_agent")
+    workflow.add_edge("risk_agent", "decision_agent")
+    workflow.add_edge("user_feedback_agent", "decision_agent")
 
-    # 4. Barrier to Decision Agent (executes only once)
-    workflow.add_edge("barrier", "decision_agent")
-
-    # 5. End
     workflow.add_edge("decision_agent", END)
 
-    return workflow.compile()
+    # FIX: Add checkpointer for fault tolerance
+    checkpointer = MemorySaver()
+
+    return workflow.compile(checkpointer=checkpointer)

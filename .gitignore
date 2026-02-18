@@ -1,15 +1,33 @@
-# Security: Never upload keys
+# Security — never commit keys or secrets
 .env
-k8s/1-secret.yaml
+k8s/*-secret.yaml
 
-# System: Ignore virtual environment and heavy folders
+# Python
 venv/
 __pycache__/
-.DS_Store
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.eggs/
 
-# Data: Ignore local databases (RAG & SQLite)
+# Data — local databases (never commit these)
 data/chroma_db/
 data/app.db
+data/cache/
+data/checkpoints.db
 
-# Documentation: You might want to ignore internal company PDFs if they are real
+# Internal docs (may contain sensitive company info)
 data/internal_docs/*.pdf
+
+# IDE
+.DS_Store
+.vscode/
+.idea/
+
+# Test artifacts
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml

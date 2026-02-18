@@ -1,8 +1,4 @@
-"""Custom exceptions for AI Product Manager.
-
-This module defines a hierarchy of exceptions used throughout the application
-for better error handling and debugging.
-"""
+"""Custom exceptions hierarchy for AI Product Manager."""
 
 
 class AIProductManagerError(Exception):
@@ -13,7 +9,7 @@ class AIProductManagerError(Exception):
         self.message = message
         self.details = details or {}
 
-    def __str__(self):
+    def __str__(self) -> str:
         if self.details:
             return f"{self.message} | Details: {self.details}"
         return self.message
@@ -29,33 +25,27 @@ class AgentError(AIProductManagerError):
 
 class RAGError(AIProductManagerError):
     """Raised when RAG retrieval or ingestion fails."""
-
     pass
 
 
 class CacheError(AIProductManagerError):
     """Raised when cache operations fail."""
-
     pass
 
 
 class DatabaseError(AIProductManagerError):
     """Raised when database operations fail."""
-
     pass
 
 
 class ConfigurationError(AIProductManagerError):
     """Raised when configuration is invalid or missing."""
-
     pass
 
 
 class ExternalServiceError(AIProductManagerError):
     """Raised when external services (OpenAI, Tavily, etc.) fail."""
 
-    def __init__(
-        self, service_name: str, message: str, details: dict | None = None
-    ):
+    def __init__(self, service_name: str, message: str, details: dict | None = None):
         self.service_name = service_name
         super().__init__(f"[{service_name}] {message}", details)

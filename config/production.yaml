@@ -1,5 +1,5 @@
-# Production Configuration Overrides
-# These settings override defaults from src/config/settings.py
+# Production configuration reference
+# These are documented defaults — actual values come from environment variables / .env
 
 app:
   name: "Enterprise AI Product Manager"
@@ -7,24 +7,25 @@ app:
   debug: false
 
 llm:
-  model_name: "gpt-4-turbo"
-  temperature: 0.7
+  # FIX: Updated from deprecated gpt-4-turbo
+  model_name: "gpt-4o"              # DecisionAgent — most capable
+  analysis_model: "gpt-4o-mini"     # Parallel agents — faster & cheaper
+  temperature: 0.0
   max_tokens: 2000
 
 cache:
   backend: "redis"
-  ttl: 600  # 10 minutes
+  ttl: 600
   redis_url: "redis://redis:6379/0"
 
 database:
-  url: "sqlite:////app/data/app.db"  # or postgresql://user:pass@host:5432/db
+  url: "sqlite:////app/data/app.db"  # swap for postgresql://... in production
   pool_size: 10
   max_overflow: 20
 
 rag:
   top_k: 3
-  score_threshold: 0.6
-  enable_reranking: true
+  score_threshold: 0.5
 
 retry:
   max_retries: 3
@@ -32,9 +33,4 @@ retry:
   backoff_factor: 2.0
 
 monitoring:
-  enable_metrics: true
   log_level: "INFO"
-  structured_logging: true
-
-search:
-  max_results: 5

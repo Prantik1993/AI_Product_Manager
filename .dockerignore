@@ -1,18 +1,15 @@
-# Ignore Git files
 .git
 .gitignore
-
-# Ignore Virtual Env
 venv/
-env/
-
-# Ignore Python Cache
 __pycache__/
 *.pyc
-
-# Ignore Local Secrets & DBs
 .env
 data/app.db
 data/chroma_db/
+data/cache/
 k8s/
 tests/
+.pytest_cache/
+htmlcov/
+.coverage
+*.egg-info/

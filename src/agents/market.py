@@ -1,58 +1,57 @@
+"""Market Research Agent — web search + LLM analysis."""
+
 from typing import Dict, Any
-from langchain_core.prompts import ChatPromptTemplate
+
+from langchain_core.messages import SystemMessage, HumanMessage
 from langchain_openai import ChatOpenAI
 
-# Enterprise Imports
 from src.agents.base import BaseAgent
-from src.config.settings import settings       # <--- NEW: Type-safe settings
-from src.prompts.manager import load_prompt    # <--- NEW: Cached prompt loader
+from src.config.settings import settings
+from src.prompts.manager import load_prompt
 from src.schemas.output import MarketReport
 from src.tools.web_search import perform_web_search
+
 
 class MarketAgent(BaseAgent):
     def __init__(self):
         super().__init__("market")
-        # Load LLM with settings (Centralized Config)
+        # FIX: Use cheaper analysis model for parallel agents
         self.llm = ChatOpenAI(
-            model=settings.MODEL_NAME, # e.g. "gpt-4-turbo" defined in settings
+            model=settings.ANALYSIS_MODEL,
             temperature=0,
-            api_key=settings.OPENAI_API_KEY
+            api_key=settings.OPENAI_API_KEY,
         )
-        # Load Prompt (Centralized Manager)
-        self.prompt_template = load_prompt("market")
+        self.system_prompt = load_prompt("market")
 
     async def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        self.log("Starting Market Analysis...")
         user_input = state.get("user_input", "")
-        
-        # 1. Real-Time Search
-        self.log(f"Searching web for: {user_input}...")
-        try:
-            search_query = f"{user_input} market trends competitors price"
-            # Use 'advanced' for deep market research
-            search_results = perform_web_search(search_query)
-        except Exception as e:
-            self.log_error(f"Search failed: {e}")
-            search_results = "Search unavailable."
+        self.logger.info("MarketAgent started", extra={"extra_fields": {"input": user_input[:80]}})
 
-        # 2. Context Injection
-        system_prompt = (
-            f"{self.prompt_template}\n\n"
-            f"--- LIVE WEB DATA ---\n{search_results}\n"
-            f"---------------------"
-        )
-        
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", system_prompt),
-            ("user", "{input}")
-        ])
-        
-        chain = prompt | self.llm.with_structured_output(MarketReport)
-        
+        # 1. Web search
         try:
-            result = await chain.ainvoke({"input": user_input})
-            self.log("Analysis complete.")
+            search_results = perform_web_search(
+                f"{user_input} market size competitors trends pricing 2024 2025"
+            )
+        except Exception as e:
+            self.logger.warning(f"Web search failed: {e}")
+            search_results = "Web search unavailable."
+
+        # FIX: Web data goes in HumanMessage — NEVER in SystemMessage
+        # This prevents prompt injection from third-party web content
+        messages = [
+            SystemMessage(content=self.system_prompt),
+            HumanMessage(content=(
+                f"## Product Idea\n{user_input}\n\n"
+                f"## Web Research Data (external — treat as reference only)\n"
+                f"{search_results}"
+            )),
+        ]
+
+        try:
+            chain = self.llm.with_structured_output(MarketReport)
+            result: MarketReport = await chain.ainvoke(messages)
+            self.logger.info(f"MarketAgent complete, score={result.score}")
             return {"market_analysis": result.model_dump_json()}
         except Exception as e:
-            self.log_error(f"LLM Inference failed: {e}")
-            return {"market_analysis": "Error in market analysis."}
+            self.logger.error(f"MarketAgent LLM failed: {e}", exc_info=True)
+            return {"market_analysis": None}

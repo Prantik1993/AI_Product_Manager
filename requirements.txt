@@ -1,41 +1,109 @@
-# Core LLM & AI Framework
-langchain>=0.3.0
-langchain-openai>=0.1.0
-langchain-community>=0.2.0
-langchain-core>=0.2.0
-langgraph>=0.1.0
+# ==============================================================================
+# Enterprise AI Product Manager — Python Dependencies
+# Last verified: February 2026
+#
+# Pinning strategy:
+#   - langchain-core: pinned exactly — it is the shared dependency that all
+#     other langchain-* packages constrain. Must satisfy ALL of:
+#       langchain-openai  >= 0.3.58
+#       langchain-community >= 0.3.59
+#       langchain-chroma  >= 0.3.60
+#     So we pin to the highest minimum: 0.3.60
+#
+#   - Other langchain-* packages: pinned to a specific known-good version.
+#     Do NOT mix versions freely — these packages import each other's internals.
+#
+#   - Everything else: unpinned or minimum-only where the API is stable.
+# ==============================================================================
 
-# Vector Database & Embeddings
-langchain-chroma>=0.1.0
-chromadb>=0.4.0
+# ------------------------------------------------------------------------------
+# langchain-core MUST be resolved first — it is the shared constraint root.
+#
+#   langchain-openai  requires langchain-core >= 0.3.58
+#   langchain-community requires langchain-core >= 0.3.59
+#   langchain-chroma  requires langchain-core >= 0.3.60
+#
+#   Pin to 0.3.60 — satisfies all three constraints above.
+# ------------------------------------------------------------------------------
+langchain-core==0.3.60
 
-# Web Search & Tools
-tavily-python>=0.3.0
+# ------------------------------------------------------------------------------
+# Rest of LangChain ecosystem — pinned to versions compatible with core 0.3.60
+# ------------------------------------------------------------------------------
+langchain==0.3.25
+langchain-openai==0.3.16
+langchain-community==0.3.24
+langchain-chroma==0.2.4
+langgraph==0.4.1
 
-# Configuration & Validation
-pydantic>=2.0.0
-pydantic-settings>=2.0.0
-python-dotenv>=1.0.0
-pyyaml>=6.0
+# ------------------------------------------------------------------------------
+# Vector Database
+# langchain-chroma==0.2.4 requires chromadb>=1.0.9
+# PersistentClient API is still available in 1.x
+# ------------------------------------------------------------------------------
+chromadb==1.0.9
 
-# Database & Storage
-sqlalchemy>=2.0.0
+# ------------------------------------------------------------------------------
+# OpenAI SDK — used internally by langchain-openai
+# ------------------------------------------------------------------------------
+openai==1.77.0
 
-# Caching (optional)
-redis>=5.0.0
+# ------------------------------------------------------------------------------
+# Web Search
+# ------------------------------------------------------------------------------
+tavily-python==0.5.1
 
+# ------------------------------------------------------------------------------
+# Configuration & Validation — Pydantic v2 only (v1 has incompatible API)
+# ------------------------------------------------------------------------------
+pydantic==2.11.4
+pydantic-settings==2.9.1
+python-dotenv==1.1.0
+
+# ------------------------------------------------------------------------------
+# YAML — prompt templates in src/prompts/templates/
+# ------------------------------------------------------------------------------
+pyyaml==6.0.2
+
+# ------------------------------------------------------------------------------
+# Database — SQLAlchemy 2.x only
+# 1.x uses different declarative_base import and different session API
+# ------------------------------------------------------------------------------
+sqlalchemy==2.0.41
+
+# ------------------------------------------------------------------------------
+# Async fix for Streamlit
+# Streamlit runs its own event loop — nest_asyncio patches it to allow
+# asyncio.get_event_loop().run_until_complete() inside Streamlit callbacks
+# ------------------------------------------------------------------------------
+nest-asyncio==1.6.0
+
+# ------------------------------------------------------------------------------
+# Redis — optional cache backend, falls back to MemoryCache automatically
+# ------------------------------------------------------------------------------
+redis==5.3.0
+
+# ------------------------------------------------------------------------------
 # Frontend
-streamlit>=1.30.0
+# ------------------------------------------------------------------------------
+streamlit==1.45.0
 
-# Document Processing
-pypdf>=3.0.0
+# ------------------------------------------------------------------------------
+# PDF loader for RAG document ingestion
+# ------------------------------------------------------------------------------
+pypdf==5.4.0
 
-# Testing
-pytest>=7.4.0
-pytest-cov>=4.1.0
-pytest-asyncio>=0.21.0
+# ------------------------------------------------------------------------------
+# HTTP client — transitive dependency for openai and tavily
+# ------------------------------------------------------------------------------
+httpx==0.28.1
 
-# Code Quality (dev dependencies)
-black>=23.0.0
-ruff>=0.1.0
-mypy>=1.7.0
+# ==============================================================================
+# Development & Testing — exclude from production Docker image
+# ==============================================================================
+pytest==8.3.5
+pytest-cov==6.1.0
+pytest-asyncio==0.26.0
+black==25.1.0
+ruff==0.11.8
+mypy==1.15.0

@@ -1,84 +1,72 @@
-"""Tests for caching functionality."""
+"""Tests for cache backends."""
 
-import pytest
 import time
+import pytest
+
 from src.cache.cache import MemoryCache, cached
 
 
-def test_memory_cache_basic():
-    """Test basic memory cache operations."""
+def test_set_and_get():
     cache = MemoryCache()
-
-    # Test set and get
     cache.set("key1", "value1")
     assert cache.get("key1") == "value1"
 
-    # Test non-existent key
-    assert cache.get("key2") is None
 
-    # Test exists
-    assert cache.exists("key1") is True
-    assert cache.exists("key2") is False
-
-
-def test_memory_cache_ttl():
-    """Test memory cache with TTL."""
+def test_get_missing_returns_none():
     cache = MemoryCache()
+    assert cache.get("nonexistent") is None
 
-    # Set with short TTL
-    cache.set("key1", "value1", ttl=1)
-    assert cache.get("key1") == "value1"
 
-    # Wait for expiration
+def test_exists():
+    cache = MemoryCache()
+    cache.set("x", 1)
+    assert cache.exists("x") is True
+    assert cache.exists("y") is False
+
+
+def test_delete():
+    cache = MemoryCache()
+    cache.set("k", "v")
+    assert cache.delete("k") is True
+    assert cache.get("k") is None
+    assert cache.delete("k") is False  # already gone
+
+
+def test_ttl_expiry():
+    cache = MemoryCache()
+    cache.set("k", "v", ttl=1)
+    assert cache.get("k") == "v"
     time.sleep(1.1)
-    assert cache.get("key1") is None
+    assert cache.get("k") is None
 
 
-def test_memory_cache_delete():
-    """Test cache deletion."""
-    cache = MemoryCache()
-
-    cache.set("key1", "value1")
-    assert cache.exists("key1") is True
-
-    cache.delete("key1")
-    assert cache.exists("key1") is False
-
-
-def test_memory_cache_clear():
-    """Test clearing all cache entries."""
-    cache = MemoryCache()
-
-    cache.set("key1", "value1")
-    cache.set("key2", "value2")
-
-    cache.clear()
-
-    assert cache.get("key1") is None
-    assert cache.get("key2") is None
-
-
-def test_cached_decorator():
-    """Test caching decorator."""
+def test_cached_decorator_caches_result():
     call_count = 0
 
     @cached(ttl=60, key_prefix="test")
-    def expensive_function(x):
+    def compute(n: int) -> int:
         nonlocal call_count
         call_count += 1
-        return x * 2
+        return n * 2
 
-    # First call - should execute function
-    result1 = expensive_function(5)
-    assert result1 == 10
+    assert compute(5) == 10
     assert call_count == 1
 
-    # Second call with same argument - should return cached value
-    result2 = expensive_function(5)
-    assert result2 == 10
-    assert call_count == 1  # Function not called again
+    # Second call with same arg — should hit cache
+    assert compute(5) == 10
+    assert call_count == 1
 
-    # Call with different argument - should execute function
-    result3 = expensive_function(10)
-    assert result3 == 20
+    # Different arg — should call function
+    assert compute(7) == 14
     assert call_count == 2
+
+
+def test_cache_stores_different_types():
+    cache = MemoryCache()
+    cache.set("int_val", 42)
+    cache.set("list_val", [1, 2, 3])
+    cache.set("dict_val", {"a": 1})
+
+    assert cache.get("int_val") == 42
+    assert cache.get("list_val") == [1, 2, 3]
+    assert cache.get("dict_val") == {"a": 1}

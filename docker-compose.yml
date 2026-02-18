@@ -1,7 +1,7 @@
-version: '3.8'
+# FIX: Removed deprecated "version: '3.8'" field (Docker Compose v2 ignores it with a warning)
+# Modern docker-compose.yml files have no version key
 
 services:
-  # Redis cache service
   redis:
     image: redis:7-alpine
     container_name: ai-pm-redis
@@ -17,14 +17,13 @@ services:
       retries: 3
     restart: unless-stopped
 
-  # Main application
   app:
     build:
       context: .
-      dockerfile: Dockerfile
+      target: production
     container_name: ai-pm-app
     ports:
-      - "8501:8501"  # Streamlit UI
+      - "8501:8501"
     environment:
       - ENV=production
       - CACHE_BACKEND=redis
@@ -38,17 +37,18 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+    # FIX: Health check now uses Streamlit's native endpoint (fast, no Python import overhead)
     healthcheck:
-      test: ["CMD", "python", "scripts/health_check.py"]
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
       interval: 30s
-      timeout: 10s
+      timeout: 5s
       retries: 3
       start_period: 40s
     restart: unless-stopped
 
-  # Optional: PostgreSQL database (uncomment for production)
+  # Uncomment for PostgreSQL in production:
   # postgres:
-  #   image: postgres:15-alpine
+  #   image: postgres:16-alpine
   #   container_name: ai-pm-postgres
   #   environment:
   #     POSTGRES_DB: ai_product_manager
@@ -61,7 +61,6 @@ services:
   #   healthcheck:
   #     test: ["CMD-SHELL", "pg_isready -U admin"]
   #     interval: 10s
-  #     timeout: 3s
   #     retries: 3
   #   restart: unless-stopped
 
